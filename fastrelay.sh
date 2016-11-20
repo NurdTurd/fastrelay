@@ -18,27 +18,62 @@
 # title            :FastRelay
 # description      :This script will make it super easy to run a Tor Relay Node.
 # author           :TorWorld A Project Under The CryptoWorld Foundation.
-# contributors     :KsaRedFx, SPMedia
-# date             :10-20-2016
-# version          :0.0.4 Alpha
+# contributors     :KsaRedFx, SPMedia, Lunar, NurdTurd, Codeusa
+# date             :11-20-2016
+# version          :0.0.5 Alpha
 # os               :Debian/Ubuntu
 # usage            :bash fastrelay.sh
 # notes            :If you have any problems feel free to email us: security[at]torworld.org
 #===============================================================================================================================================
 
-# Checking if lsb_release is Installed
-if [ ! -x  /usr/bin/lsb_release ]
+# Checking if curl is installed
+if [ ! -x /usr/bin/curl ]
 then
-    echo -e "\033[31mLsb_release Command Not Found\e[0m"
-    echo -e "\033[34mInstalling lsb-release, Please Wait...\e[0m"
+    echo -e "\033[31mcurl Command Not Found\e[0m"
+    echo -e "\033[34mInstalling curl, Please Wait...\e[0m"
+    apt-get install curl
+fi
+
+# Get SHML (http://shml.xyz)
+bash -c 'curl -SsL https://raw.githubusercontent.com/maxcdn/shml/latest/shml.sh -o shml.sh'
+source ./shml.sh
+
+# Checking if lsb_release is installed
+if [ ! -x /usr/bin/lsb_release ]
+then
+    echo "$(fgc red "lsb_release command not found") $(fgc end)"
+    echo "$(fgc blue "Installing lsb-release, Please Wait...") $(fgc end)"
     apt-get install lsb-release
 fi
 
 # Getting Codename of the OS
 flavor=`lsb_release -cs`
 
+# Define functions
+
+# Yes or No question
+function yesNo {
+  read -p "$(fgc lightyellow "$1 ")$(a bold "")$(fgc lightcyan "(")$(fgc lightblue "Y")$(fgc lightcyan "/")$(fgc lightblue "N")$(fgc lightcyan ")")$(fgc end)"$(a end)" " REPLY
+}
+# User input question
+function userInput {
+  read -p "$(fgc lightyellow "$1: ")$(fgc end)" $2
+}
+# Three-Point Loader
+function loader {
+  echo $(fgc blue "$1...")$(fgc end)
+}
+# Getter status check
+function getter {
+  echo $(fgc blue "$1 ")$(a bold "")$(fgc lightcyan "[ ")$(fgc lightgreen "")$(icon check)$(fgc lightcyan " ]")$(fgc end)$(a end)$(fgc end)
+}
+# Notice message
+function notice {
+  echo $(fgc blue "$1")$(fgc end)
+}
+
 # Installing dependencies for Tor
-read -p "Do you want to fetch the core Tor dependencies? (Y/N)" REPLY
+yesNo "Do you want to fetch the core Tor dependencies?"
 if [ "${REPLY,,}" == "y" ]; then
    echo deb http://deb.torproject.org/torproject.org $flavor main >> /etc/apt/sources.list.d/torproject.list
    echo deb-src http://deb.torproject.org/torproject.org $flavor main >> /etc/apt/sources.list.d/torproject.list
@@ -47,43 +82,54 @@ if [ "${REPLY,,}" == "y" ]; then
 fi
 
 # Updating / Upgrading System
-read -p "Do you wish to upgrade system packages? (Y/N)" REPLY
+yesNo "Do you wish to upgrade system packages?"
 if [ "${REPLY,,}" == "y" ]; then
    apt-get update
    apt-get dist-upgrade
 fi
 
 # Installing Tor
-read -p "Do you wish to install Tor? (Make sure you're 100% certain you want to do this) (Y/N)" REPLY
+yesNo "Do you wish to install Tor? $(fgc red "(Make sure you're 100% certain you want to do this)")$(fgc end)"
 if [ "${REPLY,,}" == "y" ]; then
    apt-get install tor
-   echo "Getting status of Tor.."
-   service tor status
-   echo "Stopping Tor service..."
+   loader "Retrieving status of Tor"
+   service tor status && getter "Retrieve status of Tor"
+   loader "Stopping Tor service"
    service tor stop
+   getter "Stop Tor service"
 fi
 
 # Customizing Tor RC file to suit your Relay
-# Nickname for Exit
-read -p "Enter your desired Relay nickname: "  Name
+# Nickname for Relay
+userInput "Enter your desired Relay nickname"  Name
 echo "Nickname $Name" > /etc/tor/torrc
 
 # DirPort for Relay
-read -p "Enter your desired DirPort: (example: 80, 9030) " DirPort
+userInput "Enter your desired DirPort (example: 80, 9030)" DirPort
 echo "DirPort $DirPort" >> /etc/tor/torrc
 
 # ORPort for Relay
-read -p "Enter your desired ORPort: (example: 443, 9001) " ORPort
+userInput "Enter your desired ORPort (example: 443, 9001)" ORPort
 echo "ORPort $ORPort" >> /etc/tor/torrc
 
 # Exit Policy for Relay
-echo "By default we do not allow exit policies for Relays (So this content is static.)"
+notice "By default we do not allow exit policies for Relays (So this content is static.)"
 echo "Exitpolicy reject *:*" >> /etc/tor/torrc
 
 # Contact Info for Relay
-read -p "Enter your contact info for your Relay: " Info
+userInput "Enter your contact info for your Relay" Info
 echo "ContactInfo $Info" >> /etc/tor/torrc
 
 # Restarting Tor service
-echo "Restarting the Tor service..."
-service tor restart
+loader "Trying to restart the Tor service"
+service tor restart && getter "Restart the Tor service"
+
+# Installing TorARM
+yesNo "Would you like to install Tor ARM to help monitor your Relay?"
+if [ "${REPLY,,}" == "y" ]; then
+   apt-get install tor-arm
+   notice "Fixing the Tor RC to allow Tor ARM"
+   echo "DisableDebuggerAttachment 0" >> /etc/tor/torrc
+   echo $(fgc blue "To start TorARM just type: ")$(fgc lightyellow "arm")$(fgc end)
+fi
+rm -Rfv ./shml.sh
