@@ -1,4 +1,4 @@
-#!/bin/bash -
+#!/usr/bin/env bash
 #===============================================================================================================================================
 # (C) Copyright 2016 TorWorld (https://torworld.org) a project under the CryptoWorld Foundation (https://cryptoworld.is).
 #
